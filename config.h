@@ -46,7 +46,7 @@ on_signal [][MAX_PER_SIGNAL + 1] = {
 Event
 on_startup [] = {
 	EVENT(
-		.placeholder = "cstatus v." VERSION,
+		.placeholder = "atomstatus vs." VERSION,
 		.on_startup  = 0,
 		.order       = 0
 	),
