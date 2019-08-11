@@ -1,4 +1,5 @@
 # AtomStatus
+## About
 A very simple plain-text status-line generator for dwm/other window managers.
 Intended to follow a suckless-style strategy for configuration and extending.
 
@@ -46,7 +47,7 @@ on_interval [][MAX_PER_INTERVAL + 1] = {
 ...
 ```
 
-And running commands on receiving real time (RT[MIN|MAX]) signals.
+Running commands on receiving real time (RT[MIN|MAX]) signals.
 ```c
 Event
 on_signal [][MAX_PER_SIGNAL + 1] = {
@@ -72,3 +73,10 @@ on_startup [] = {
 	),
 };
 ```
+
+Printed segments are separated using the variable `format_separator` in `config.h` as a separator.
+Alternately, segments can be printf-d by defining the preprocessor macro `FORMAT` as a format string.
+
+## Installation
+1. Configure status commands.
+2. Run `./build`. Move the resulting executable `atomstatus` to a suitable directory.

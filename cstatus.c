@@ -18,7 +18,7 @@
 #define const_string const char const
 
 #define eprintf(FORMAT, ...)\
-	fprintf(stderr, "[cstatus] " FORMAT "\n", __VA_ARGS__)
+	fprintf(stderr, "[atomstatus] " FORMAT "\n", __VA_ARGS__)
 
 #define EMPTYEVENT { .command = NULL }
 #define ISEMPTYEVENT(ev)\
@@ -251,7 +251,7 @@ handle_user_signal (int signo){
 
 void
 handle_sigint_cleanup (Unused int signo){
-	eprintf("Caught signal SIGINT, exiting...%s", "");
+	eprintf("Caught SIGINT, exiting...%s", "");
 
 	// Cleanup tabled statuses.
 	for (size_t i = 0; i < MAX_INTERVAL; i++)
