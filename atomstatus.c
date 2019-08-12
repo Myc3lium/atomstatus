@@ -12,7 +12,21 @@
 #include <time.h>
 
 
-#define Unused                     __attribute__((unused))
+#ifdef __GNUC__
+    #define Unused                     __attribute__((unused))
+#else
+    #define Unused
+#endif
+
+// Enable this option if you want to run things in parallel.
+// Modules defined with .is_parallel are opened at startup,
+// then left open, being updated as normal, but without closing
+// and reopening a subprocess for the command every time the module
+// is run. This allows scripts run as modules to "remember" things
+// (keep state).
+
+// #define ENABLE_PARALLEL
+
 
 #define VERSION "0.1.0"
 #define const_string const char const
@@ -54,7 +68,17 @@ struct {
 	int order;      // The relative order of the module.
 	int on_startup; // Run on startup.
 
-	const_string *command;     // Command.
+#ifdef ENABLE_PARALLEL
+	// Enable parallel modules by defining this macro.
+	const int is_parallel; // Is command meant to be a continuous subprocess.
+	union {            // We don't need command once subpr is started.
+		FILE *subpr;   // Subprocess handle.
+	    char *command;     // Command.
+	};
+#else
+    const_string *command;     // Command.
+#endif
+
 	const_string *placeholder; // Text to use if no output.
 
     struct string      // Last output from command.
@@ -63,16 +87,20 @@ struct {
 } Event;
 
 
-int   compare_elements       (const void*, const void*);
-void  sort_events            (void);
-void  initial_run            (void);
-int   run_modules            (Event*);
-int   run_module             (Event*);
-void  handle_user_signal     (int);
-void  handle_sigint_cleanup  (int);
-int   sfgetline              (FILE*, struct string *);
-void  sfree                  (struct string*);
-void  print_all              (void);
+int   compare_elements          (const void*, const void*);
+void  sort_events               (void);
+#ifdef ENABLE_PARALLEL
+int   open_subprocess_command   (Event*);
+int   close_subprocess_command  (Event*);
+#endif
+void  initial_run               (void);
+int   run_modules               (Event*);
+int   run_module                (Event*);
+void  handle_user_signal        (int);
+void  handle_sigint_cleanup     (int);
+int   sfgetline                 (FILE*, struct string *);
+void  sfree                     (struct string*);
+void  print_all                 (void);
 
 
 // #include "config.h"
@@ -199,18 +227,32 @@ sfree(struct string *st){
 int
 run_module (Event *module){
 	// Take a pointer to a single module and run it.
-	if (!module || !(module -> command)) // abort on empty command.
+	if (!module || !(module -> command)
+#ifdef ENABLE_PARALLEL
+			|| !(module -> subpr)
+#endif
+		) // abort on empty command.
 		return 1;
 
 	struct string outline = NULL_STRING;
-
+#ifdef ENABLE_PARALLEL
+	FILE *process         = ((module -> is_parallel) ?
+								module -> subpr :
+								popen (module -> command, "r"));
+#else
 	FILE *process = popen (module -> command, "r");
+#endif
+
 	int gotline   = sfgetline (process, &(outline)), // sfgetline (process, &(module -> laststatus)),
 	    exitstat  = 0;
 
+#ifdef ENABLE_PARALLEL
+	if ((!(module -> is_parallel)) && (exitstat = pclose (process)))
+        eprintf("Command '%s' exited with nonzero status %d", module -> command, exitstat);
+#else
 	if ((exitstat = pclose (process)))
         eprintf("Command '%s' exited with nonzero status %d", module -> command, exitstat);
-
+#endif
     else {
 		// Only replace last status if command ran successfully.
 		sfree (&(module -> laststatus));
@@ -230,6 +272,39 @@ run_modules (Event *modules){
 	return exitstat;
 }
 
+#ifdef ENABLE_PARALLEL
+int
+open_subprocess_command (Event* module){
+	// Open a subprocess using module -> command, then
+	// attach the resulting FILE handle to the module.
+
+	if (!module || !(module -> is_parallel))
+		return 1;
+
+	FILE *process =
+		popen(module -> command, "r");
+
+	if (!process){
+		eprintf("Failed to open parallel process with command '%s'", module -> command);
+		return 1;
+	}
+
+	module -> subpr = process;
+	return 0;
+}
+
+int
+close_subprocess_command (Event* module){
+	if (!module)
+		return 1;
+
+	if (!(module -> is_parallel))
+		return 0;
+
+	return pclose(module -> subpr);
+}
+#endif
+
 void
 initial_run (void){
 	// Run startup modules and other modules which have .on_startup = 1
@@ -240,12 +315,20 @@ initial_run (void){
 		for (size_t x = 0; !ISEMPTYEVENT((on_interval [i][x])); x++)
 			if (on_interval [i][x]. on_startup)
 				run_module (&(on_interval [i][x]));
+#ifdef ENABLE_PARALLEL
+			else if (on_interval [i][x]. is_parallel)
+				open_subprocess_command (&(on_interval [i][x]));
+#endif
 	}
 
 	for (size_t i = 0; i < MAX_SIGNAL; i++){
 		for (size_t x = 0; !ISEMPTYEVENT((on_signal [i][x])); x++)
 			if (on_signal [i][x]. on_startup)
 				run_module (&(on_signal [i][x]));
+#ifdef ENABLE_PARALLEL
+			else if (on_signal [i][x]. is_parallel)
+				open_subprocess_command (&(on_signal [i][x]));
+#endif
 	}
 }
 
@@ -268,12 +351,20 @@ handle_sigint_cleanup (Unused int signo){
 
 	// Cleanup tabled statuses.
 	for (size_t i = 0; i < MAX_INTERVAL; i++)
-		for (Event *module = on_interval[i]; !ISEMPTYEVENT((*module)); module++)
+		for (Event *module = on_interval[i]; !ISEMPTYEVENT((*module)); module++){
 			sfree (&(module -> laststatus));
+#ifdef ENABLE_PARALLEL
+			close_subprocess_command(module);
+#endif
+		}
 
 	for (size_t i = 0; i < MAX_SIGNAL; i++)
-		for (Event *module = on_signal[i]; !ISEMPTYEVENT((*module)); module++)
+		for (Event *module = on_signal[i]; !ISEMPTYEVENT((*module)); module++){
 			sfree (&(module -> laststatus));
+#ifdef ENABLE_PARALLEL
+			close_subprocess_command(module);
+#endif
+		}
 
 	for (size_t i = 0; i < MAX_STARTUP; i++)
 		sfree (&(on_startup [i]. laststatus));

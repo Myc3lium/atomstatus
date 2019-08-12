@@ -4,14 +4,24 @@ const char* format_separator = "|";
 #define FORMAT "%s"
 
 // Event members:
-//	   int order;                     // The relative order of the module.
-//	   int on_startup;                // Run on startup.
+//     int order;      // The relative order of the module.
+//     int on_startup; // Whether to run on startup. This option is implied by is_parallel.
 //
-//	   const char const *command;     // Command.
-//	   const char const *placeholder; // Text to use if no output.
+//     const int is_parallel; // Is command meant to be a continuous subprocess.
 //
-//	   struct string      // Last output from command.
-//		laststatus;
+// #ifdef ENABLE_PARALLEL
+//     union { // We don't need a command once a subprocess is started.
+//     	   FILE *subpr;       // Subprocess handle.
+//         char *command;     // Command.
+//     };
+// #else
+//     const char const *command;
+// #endif
+//
+//     const char const *placeholder; // Text to use if no output.
+//
+//     struct string      // The last successful output from command.
+//         laststatus;
 
 Event
 on_interval [][MAX_PER_INTERVAL + 1] = {
@@ -68,6 +78,17 @@ on_signal [][MAX_PER_SIGNAL + 1] = {
 				.order       = 1
 			)
 	),
+
+#ifdef ENABLE_PARALLEL
+	ON_SIGNAL(3,
+			EVENT(
+				.command     = "count=0;while true; do count=$((count + 1)); echo $count; sleep 1; done",
+				.placeholder = "blah",
+				.is_parallel = 1,
+				.order       = 1
+			)
+	),
+#endif
 
 	{EMPTYEVENT},
 };
