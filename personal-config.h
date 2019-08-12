@@ -3,6 +3,15 @@
 const char* format_separator = "|";
 #define FORMAT "%s"
 
+// Event members:
+//	   int order;                     // The relative order of the module.
+//	   int on_startup;                // Run on startup.
+//
+//	   const char const *command;     // Command.
+//	   const char const *placeholder; // Text to use if no output.
+//
+//	   struct string      // Last output from command.
+//		laststatus;
 
 Event
 on_interval [][MAX_PER_INTERVAL + 1] = {

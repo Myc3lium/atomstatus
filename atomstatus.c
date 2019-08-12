@@ -179,7 +179,7 @@ sfgetline (FILE* source, struct string *output){
 
 		if (output -> length + 1 == output -> allocated) // width of characters == allocated width
 			if (! realloc (output -> internal, (output ->allocated += output -> allocated / 2))){
-				eprintf("Failed allocating %d bytes reading output of command.", output -> length);
+				eprintf("Failed allocating %d bytes reading output of command. errno: %d", output -> length, errno);
 				return 1;
 			}
 
@@ -202,11 +202,7 @@ run_module (Event *module){
 	if (!module || !(module -> command)) // abort on empty command.
 		return 1;
 
-	struct string outline = {
-		.internal  = NULL,
-		.allocated = 0,
-		.length    = 0,
-	};
+	struct string outline = NULL_STRING;
 
 	FILE *process = popen (module -> command, "r");
 	int gotline   = sfgetline (process, &(outline)), // sfgetline (process, &(module -> laststatus)),

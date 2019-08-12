@@ -1,7 +1,7 @@
 # AtomStatus
 ## About
-A very simple plain-text status-line generator for dwm/other window managers.
-Intended to follow a suckless-style strategy for configuration and extending.
+AtomStatus is a very simple plain-text status-line generator for dwm/other window managers.
+It tries to follow a suckless-like strategy for configuration and extending.
 
 Example usage for dwm/xsetroot method:
 ```bash
