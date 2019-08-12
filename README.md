@@ -82,7 +82,7 @@ on_startup [] = {
 ```
 
 Demonstrating the `is_parallel` functionality:
-```
+```c
 #ifdef ENABLE_PARALLEL
 	ON_SIGNAL(3,
 			EVENT(
