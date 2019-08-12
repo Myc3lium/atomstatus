@@ -75,8 +75,12 @@ void  sfree                  (struct string*);
 void  print_all              (void);
 
 
-#include "config.h"
-//#include "personal-config.h"
+// #include "config.h"
+#include "personal-config.h"
+
+#ifndef FORMAT
+    #define FORMAT "%s"
+#endif
 
 
 Event *ordered_events
