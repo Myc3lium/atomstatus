@@ -75,7 +75,8 @@ void  sfree                  (struct string*);
 void  print_all              (void);
 
 
-#include "config.h"
+//#include "config.h"
+#include "personal-config.h"
 
 
 Event *ordered_events
@@ -148,8 +149,8 @@ print_all (void){
 		}
 	}
 
-	printf("\n"); // flush stdout.
-	// Could use fflush(stdout), but we need a newline anyway.
+	printf("\n"); // flush stdout. Just using a newline doesn't work, apparently.
+	fflush(stdout);
 }
 
 int
@@ -194,15 +195,27 @@ sfree(struct string *st){
 int
 run_module (Event *module){
 	// Take a pointer to a single module and run it.
-	if (!(module -> command)) // abort on empty command.
+	if (!module || !(module -> command)) // abort on empty command.
 		return 1;
 
+	struct string outline = {
+		.internal  = NULL,
+		.allocated = 0,
+		.length    = 0,
+	};
+
 	FILE *process = popen (module -> command, "r");
-	int gotline   = sfgetline (process, &(module -> laststatus)),
+	int gotline   = sfgetline (process, &(outline)), // sfgetline (process, &(module -> laststatus)),
 	    exitstat  = 0;
 
 	if ((exitstat = pclose (process)))
         eprintf("Command '%s' exited with nonzero status %d", module -> command, exitstat);
+
+    else {
+		// Only replace last status if command ran successfully.
+		sfree (&(module -> laststatus));
+		module -> laststatus = outline;
+	}
 
 	return (gotline || exitstat);
 }

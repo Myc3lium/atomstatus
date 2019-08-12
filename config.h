@@ -1,7 +1,8 @@
 // Using arrays for intervals and signals allows us to dispatch
 // events/modules in O(1) (constant) time.
-const char* format_separator = " ";
-#define FORMAT "[%s]"
+const char* format_separator = " | ";
+#define FORMAT "%s"
+
 
 Event
 on_interval [][MAX_PER_INTERVAL + 1] = {

@@ -7,12 +7,7 @@ Example usage for dwm/xsetroot method:
 ```bash
 #!/bin/sh
 
-atomstatus | while true 
-do
-	read line
-	xsetroot -name "  $line"
-	sleep 1
-done
+atomstatus | xargs -I{} xsetroot -name " {}"
 ```
 
 Configuration can be done with the `config.h` file. Commands are stored by type in arrays, 
@@ -33,6 +28,7 @@ struct string      // Last output from command.
 	laststatus;
 ```
 
+(see `personal-config.h` for more examples)
 The below example illustrates updating the time every second:
 ```c
 Event
@@ -80,3 +76,6 @@ Alternately, segments can be printf-d by defining the preprocessor macro `FORMAT
 ## Installation
 1. Configure status commands.
 2. Run `./build`. Move the resulting executable `atomstatus` to a suitable directory.
+
+## TODO
+1. Add non blocking read from `popen` processes.
