@@ -79,3 +79,5 @@ Alternately, segments can be printf-d by defining the preprocessor macro `FORMAT
 
 ## TODO
 1. Add non blocking read from `popen` processes.
+2. Find source of weird `realloc` failure. This seems to be something to do
+    with heap corruption, although I'm not sure exactly what.
