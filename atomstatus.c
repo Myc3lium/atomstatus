@@ -34,11 +34,11 @@
 #define const_string const char const
 
 #define eprintf(FORMAT, ...)\
-	fprintf(stderr, "[atomstatus] " FORMAT "\n", __VA_ARGS__)
+    fprintf(stderr, "[atomstatus] " FORMAT "\n", __VA_ARGS__)
 
 #define EMPTYEVENT { .command = NULL }
 #define ISEMPTYEVENT(ev)\
-	(ev. command == NULL)
+    (ev. command == NULL)
 
 #define MAX_PER_INTERVAL 8
 #define MAX_INTERVAL (sizeof(on_interval) / sizeof(on_interval[0]))
@@ -61,31 +61,31 @@
 
 
 struct string {
-	unsigned length;
-	unsigned allocated;
-	char     *internal;
+    unsigned length;
+    unsigned allocated;
+    char     *internal;
 };
 
 typedef
 struct {
-	int order;      // The relative order of the module.
-	int on_startup; // Run on startup.
+    int order;      // The relative order of the module.
+    int on_startup; // Run on startup.
 
 #ifdef ENABLE_PARALLEL
-	// Enable parallel modules by defining this macro.
-	const int is_parallel; // Is command meant to be a continuous subprocess.
-	union {            // We don't need command once subpr is started.
-		FILE *subpr;   // Subprocess handle.
-	    char *command;     // Command.
-	};
+    // Enable parallel modules by defining this macro.
+    const int is_parallel; // Is command meant to be a continuous subprocess.
+    union {            // We don't need command once subpr is started.
+        FILE *subpr;   // Subprocess handle.
+        char *command;     // Command.
+    };
 #else
     const_string *command;     // Command.
 #endif
 
-	const_string *placeholder; // Text to use if no output.
+    const_string *placeholder; // Text to use if no output.
 
     struct string      // Last output from command.
-		laststatus;
+        laststatus;
 
 } Event;
 
@@ -116,314 +116,314 @@ void  print_all                 (void);
 
 Event *ordered_events
     [(MAX_INTERVAL * MAX_PER_INTERVAL) +
-	 (MAX_SIGNAL * MAX_PER_SIGNAL) +
-	 (MAX_STARTUP) + 1] =
+     (MAX_SIGNAL * MAX_PER_SIGNAL) +
+     (MAX_STARTUP) + 1] =
 
                 { NULL };
 
 int
 compare_elements (const void* a, const void* b){
-	Event *ev_a = *((Event**)a),
-	      *ev_b = *((Event**)b);
+    Event *ev_a = *((Event**)a),
+          *ev_b = *((Event**)b);
 
      if (ev_a -> order == ev_b -> order)
-		 return 0;
+         return 0;
 
      else if (ev_a -> order < ev_b -> order)
-		 return -1;
+         return -1;
 
      else
-		 return 1;
+         return 1;
 }
 
 void
 sort_events (void){
-	// Copy pointers for each module array.
+    // Copy pointers for each module array.
 
     size_t all = 0;
     for (size_t i = 0; i < MAX_INTERVAL; i++)
-		for (size_t x = 0; !ISEMPTYEVENT((on_interval [i][x])); x++, all++)
-			ordered_events [all] = &(on_interval [i][x]);
+        for (size_t x = 0; !ISEMPTYEVENT((on_interval [i][x])); x++, all++)
+            ordered_events [all] = &(on_interval [i][x]);
 
     for (size_t i = 0; i < MAX_SIGNAL; i++)
-		for (size_t x = 0; !ISEMPTYEVENT((on_signal [i][x])); x++, all++)
-			ordered_events [all] = &(on_signal [i][x]);
+        for (size_t x = 0; !ISEMPTYEVENT((on_signal [i][x])); x++, all++)
+            ordered_events [all] = &(on_signal [i][x]);
 
     for (size_t i = 0; i < MAX_STARTUP; i++, all++)
-		ordered_events [all] = &(on_startup [i]);
+        ordered_events [all] = &(on_startup [i]);
 
-	// Sort by .order priority.
+    // Sort by .order priority.
     qsort(ordered_events,
-			all,
-			sizeof(Event*),
-			compare_elements);
+            all,
+            sizeof(Event*),
+            compare_elements);
 
-	ordered_events [all] = NULL; // Place terminating NULL pointer for seeking end.
+    ordered_events [all] = NULL; // Place terminating NULL pointer for seeking end.
 }
 
 void
 print_all (void){
-	// Print all modules in order, separated by format_separator.
+    // Print all modules in order, separated by format_separator.
 
-	Event **modules = ordered_events;
-	size_t index = 0;
+    Event **modules = ordered_events;
+    size_t index = 0;
 
-	for (; *modules; modules++, index++){
-		if (!ISNULLSTRING((*modules)->laststatus)){
-		    if (index > 0)
-				printf("%s", format_separator);
+    for (; *modules; modules++, index++){
+        if (!ISNULLSTRING((*modules)->laststatus)){
+            if (index > 0)
+                printf("%s", format_separator);
 
-			printf(FORMAT, (*modules) -> laststatus. internal);
-		}
+            printf(FORMAT, (*modules) -> laststatus. internal);
+        }
 
-		else if ((*modules) -> placeholder) {
-			if (index > 0)
-				printf("%s", format_separator);
+        else if ((*modules) -> placeholder) {
+            if (index > 0)
+                printf("%s", format_separator);
 
-			printf(FORMAT, (*modules) -> placeholder);
-		}
-	}
+            printf(FORMAT, (*modules) -> placeholder);
+        }
+    }
 
-	printf("\n"); // flush stdout. Just using a newline doesn't work, apparently.
-	fflush(stdout);
+    printf("\n"); // flush stdout. Just using a newline doesn't work, apparently.
+    fflush(stdout);
 }
 
 int
 sfgetline (FILE* source, struct string *output){
-	int carry;
-	if (!output)
-		return 1;
+    int carry;
+    if (!output)
+        return 1;
 
-	if (!output -> internal){
-		output -> allocated = 64;
+    if (!output -> internal){
+        output -> allocated = 64;
 
-		if (!(output -> internal = malloc (64))){
-			eprintf("Failed allocating %d initial bytes for string.", output -> length);
-			return 1;
-		}
-	}
+        if (!(output -> internal = malloc (64))){
+            eprintf("Failed allocating %d initial bytes for string.", output -> length);
+            return 1;
+        }
+    }
 
-	output -> length = 0; // Set length;
-	output -> internal [0] = '\0';
+    output -> length = 0; // Set length;
+    output -> internal [0] = '\0';
 
-	while ((carry = fgetc (source)) != EOF){ // EOF encountered, leave the string with intact from last state.
-		if (carry == '\n'
-		|| 	carry == '\r'
-		||  carry == '\0') // Stop on newline or null byte.
-			return 0;
+    while ((carry = fgetc (source)) != EOF){ // EOF encountered, leave the string with intact from last state.
+        if (carry == '\n'
+        ||     carry == '\r'
+        ||  carry == '\0') // Stop on newline or null byte.
+            return 0;
 
-		if (STRING_NEEDS_RESIZE((*output)))
-			if (! realloc (output -> internal, (output ->allocated += output -> allocated / 2))){
-				eprintf("Failed allocating %d bytes reading output of command. errno: %d", output -> length, errno);
-				return 1;
-			}
+        if (STRING_NEEDS_RESIZE((*output)))
+            if (! realloc (output -> internal, (output ->allocated += output -> allocated / 2))){
+                eprintf("Failed allocating %d bytes reading output of command. errno: %d", output -> length, errno);
+                return 1;
+            }
 
-		output -> internal [output -> length ++] = carry;
-		output -> internal [output -> length]    = '\0';
-	}
+        output -> internal [output -> length ++] = carry;
+        output -> internal [output -> length]    = '\0';
+    }
 
-	return 0;
+    return 0;
 }
 
 void
 sfree(struct string *st){
-	if (st && st -> allocated && st -> internal){
-		free (st -> internal);
-		*st = (struct string){
-			.allocated = 0,
-			.length    = 0,
-			.internal  = NULL
-		};
-	}
+    if (st && st -> allocated && st -> internal){
+        free (st -> internal);
+        *st = (struct string){
+            .allocated = 0,
+            .length    = 0,
+            .internal  = NULL
+        };
+    }
 }
 
 int
 run_module (Event *module){
-	// Take a pointer to a single module and run it.
+    // Take a pointer to a single module and run it.
 #ifdef ENABLE_PARALLEL
-	if (!(module)
-	||  !(module -> command)
-	||  !(module -> subpr)) // abort on empty command.
-		return 1;
+    if (!(module)
+    ||  !(module -> command)
+    ||  !(module -> subpr)) // abort on empty command.
+        return 1;
 #else
-	if (!(module)
-	||  !(module -> command)) // abort on empty command OR non reference.
-		return 1;
+    if (!(module)
+    ||  !(module -> command)) // abort on empty command OR non reference.
+        return 1;
 #endif
 
-	struct string outline = NULL_STRING;
+    struct string outline = NULL_STRING;
 #ifdef ENABLE_PARALLEL
-	FILE *process         = ((module -> is_parallel) ?
-								module -> subpr :
-								popen (module -> command, "r"));
+    FILE *process         = ((module -> is_parallel) ?
+                                module -> subpr :
+                                popen (module -> command, "r"));
 #else
-	FILE *process = popen (module -> command, "r");
-	if (!process) // Abort on failure to open.
-		return 1;
+    FILE *process = popen (module -> command, "r");
+    if (!process) // Abort on failure to open.
+        return 1;
 #endif
 
-	int gotline   = sfgetline (process, &(outline)),
-	    exitstat  = 0;
+    int gotline   = sfgetline (process, &(outline)),
+        exitstat  = 0;
 
 #ifdef ENABLE_PARALLEL
-	if ((!(module -> is_parallel)) && (exitstat = pclose (process)))
+    if ((!(module -> is_parallel)) && (exitstat = pclose (process)))
         eprintf("Command '%s' exited with nonzero status %d", module -> command, exitstat);
 #else
-	if ((exitstat = pclose (process)))
+    if ((exitstat = pclose (process)))
         eprintf("Command '%s' exited with nonzero status '%d'", module -> command, exitstat);
 #endif
 
-	if (!gotline && outline. length){ // Programs might produce output, but fail.
-		sfree (&(module -> laststatus));
-		module -> laststatus = outline;
-	} else {
-		sfree (&(outline));
-	}
+    if (!gotline && outline. length){ // Programs might produce output, but fail.
+        sfree (&(module -> laststatus));
+        module -> laststatus = outline;
+    } else {
+        sfree (&(outline));
+    }
 
-	return (gotline || exitstat);
+    return (gotline || exitstat);
 }
 
 int
 run_modules (Event *modules){
-	// Take a pointer to a series of modules and run them.
-	int exitstat = 0;
-	for (; !(ISEMPTYEVENT((*modules))); modules++)
-		exitstat = (exitstat || run_module (modules));
+    // Take a pointer to a series of modules and run them.
+    int exitstat = 0;
+    for (; !(ISEMPTYEVENT((*modules))); modules++)
+        exitstat = (exitstat || run_module (modules));
 
-	return exitstat;
+    return exitstat;
 }
 
 #ifdef ENABLE_PARALLEL
 int
 open_subprocess_module (Event* module){
-	// Open a subprocess using module -> command, then
-	// attach the resulting FILE handle to the module.
+    // Open a subprocess using module -> command, then
+    // attach the resulting FILE handle to the module.
 
-	if (!module || !(module -> is_parallel))
-		return 1;
+    if (!module || !(module -> is_parallel))
+        return 1;
 
-	FILE *process =
-		popen(module -> command, "r");
+    FILE *process =
+        popen(module -> command, "r");
 
-	if (!process){
-		eprintf("Failed to open parallel process with command '%s'", module -> command);
-		return 1;
-	}
+    if (!process){
+        eprintf("Failed to open parallel process with command '%s'", module -> command);
+        return 1;
+    }
 
-	module -> subpr = process;
-	return 0;
+    module -> subpr = process;
+    return 0;
 }
 
 int
 close_subprocess_module (Event* module){
-	if (!module)
-		return 1;
+    if (!module)
+        return 1;
 
-	if (!(module -> is_parallel))
-		return 0;
+    if (!(module -> is_parallel))
+        return 0;
 
-	return pclose(module -> subpr);
+    return pclose(module -> subpr);
 }
 #endif
 
 void
 initial_run (void){
-	// Run startup modules and other modules which have .on_startup = 1
+    // Run startup modules and other modules which have .on_startup = 1
     for (size_t i = 0; i < MAX_STARTUP; i++)
-		run_module (&(on_startup [i]));
+        run_module (&(on_startup [i]));
 
-	for (size_t i = 0; i < MAX_INTERVAL; i++){
-		for (size_t x = 0; !ISEMPTYEVENT((on_interval [i][x])); x++)
-			if (on_interval [i][x]. on_startup)
-				run_module (&(on_interval [i][x]));
+    for (size_t i = 0; i < MAX_INTERVAL; i++){
+        for (size_t x = 0; !ISEMPTYEVENT((on_interval [i][x])); x++)
+            if (on_interval [i][x]. on_startup)
+                run_module (&(on_interval [i][x]));
 #ifdef ENABLE_PARALLEL
-			else if (on_interval [i][x]. is_parallel)
-				open_subprocess_module (&(on_interval [i][x]));
+            else if (on_interval [i][x]. is_parallel)
+                open_subprocess_module (&(on_interval [i][x]));
 #endif
-	}
+    }
 
-	for (size_t i = 0; i < MAX_SIGNAL; i++){
-		for (size_t x = 0; !ISEMPTYEVENT((on_signal [i][x])); x++)
-			if (on_signal [i][x]. on_startup)
-				run_module (&(on_signal [i][x]));
+    for (size_t i = 0; i < MAX_SIGNAL; i++){
+        for (size_t x = 0; !ISEMPTYEVENT((on_signal [i][x])); x++)
+            if (on_signal [i][x]. on_startup)
+                run_module (&(on_signal [i][x]));
 #ifdef ENABLE_PARALLEL
-			else if (on_signal [i][x]. is_parallel)
-				open_subprocess_module (&(on_signal [i][x]));
+            else if (on_signal [i][x]. is_parallel)
+                open_subprocess_module (&(on_signal [i][x]));
 #endif
-	}
+    }
 }
 
 void
 handle_user_signal (int signo){
-	// Y U NO DISPATCH COMMANDS?
-	// Ok, this seems to work now. sending signals > MAX_SIGNAL
-	// crashes the program though. Tried registering handlers that do
-	// nothing for RTsignals above MAX_SIGNAL, but that stopped the signals
-	// from being received at all.
-	if ((signo - SIGRTMIN - 1) >= (int)MAX_SIGNAL)
-		return;
+    // Y U NO DISPATCH COMMANDS?
+    // Ok, this seems to work now. sending signals > MAX_SIGNAL
+    // crashes the program though. Tried registering handlers that do
+    // nothing for RTsignals above MAX_SIGNAL, but that stopped the signals
+    // from being received at all.
+    if ((signo - SIGRTMIN - 1) >= (int)MAX_SIGNAL)
+        return;
 
-	run_modules (on_signal [(signo - SIGRTMIN - 1)]);
+    run_modules (on_signal [(signo - SIGRTMIN - 1)]);
 }
 
 Noreturn void
 handle_sigint_cleanup (Unused int signo){
-	eprintf("Caught SIGINT, exiting...%s", "");
+    eprintf("Caught SIGINT, exiting...%s", "");
 
-	// Cleanup tabled statuses.
-	for (size_t i = 0; i < MAX_INTERVAL; i++)
-		for (Event *module = on_interval[i]; !ISEMPTYEVENT((*module)); module++){
-			sfree (&(module -> laststatus));
+    // Cleanup tabled statuses.
+    for (size_t i = 0; i < MAX_INTERVAL; i++)
+        for (Event *module = on_interval[i]; !ISEMPTYEVENT((*module)); module++){
+            sfree (&(module -> laststatus));
 #ifdef ENABLE_PARALLEL
-			close_subprocess_module(module);
+            close_subprocess_module(module);
 #endif
-		}
+        }
 
-	for (size_t i = 0; i < MAX_SIGNAL; i++)
-		for (Event *module = on_signal[i]; !ISEMPTYEVENT((*module)); module++){
-			sfree (&(module -> laststatus));
+    for (size_t i = 0; i < MAX_SIGNAL; i++)
+        for (Event *module = on_signal[i]; !ISEMPTYEVENT((*module)); module++){
+            sfree (&(module -> laststatus));
 #ifdef ENABLE_PARALLEL
-			close_subprocess_module(module);
+            close_subprocess_module(module);
 #endif
-		}
+        }
 
-	for (size_t i = 0; i < MAX_STARTUP; i++)
-		sfree (&(on_startup [i]. laststatus));
+    for (size_t i = 0; i < MAX_STARTUP; i++)
+        sfree (&(on_startup [i]. laststatus));
 
-	exit (EXIT_SUCCESS); // Abort program.
+    exit (EXIT_SUCCESS); // Abort program.
 }
 
 int
 main (void){
-	// Set cleanup handle for SIGNINT.
-	if (signal(SIGINT, handle_sigint_cleanup) == SIG_ERR)
-		eprintf("Failed to register handler for SIGINT.%s", "");
+    // Set cleanup handle for SIGNINT.
+    if (signal(SIGINT, handle_sigint_cleanup) == SIG_ERR)
+        eprintf("Failed to register handler for SIGINT.%s", "");
 
-   	// Set handlers for user defined signals.
-   	for (int signo = 0; signo < (int)MAX_SIGNAL; signo ++){
-   		if (signal(SIGRTMIN+ signo, handle_user_signal) == SIG_ERR){
-			if (errno == EINVAL)
-				eprintf("Failed to register shared handler for signal (%d), invalid signal", (SIGRTMIN+ signo));
-			else
-				eprintf("Failed to register shared handler for signal (%d)", (SIGRTMIN+ signo));
-		}
-	}
+       // Set handlers for user defined signals.
+       for (int signo = 0; signo < (int)MAX_SIGNAL; signo ++){
+           if (signal(SIGRTMIN+ signo, handle_user_signal) == SIG_ERR){
+            if (errno == EINVAL)
+                eprintf("Failed to register shared handler for signal (%d), invalid signal", (SIGRTMIN+ signo));
+            else
+                eprintf("Failed to register shared handler for signal (%d)", (SIGRTMIN+ signo));
+        }
+    }
 
-	// Run modules to get starting values.
+    // Run modules to get starting values.
     initial_run ();
 
-	// Sort pointers to each event for print ordering.
-	sort_events ();
+    // Sort pointers to each event for print ordering.
+    sort_events ();
 
     // Timed loop for dispatching events on interval.
     for (time_t counter = time (NULL);; ){
-    	counter = time (NULL);
+        counter = time (NULL);
 
-    	for (size_t interval = 0; interval < (MAX_INTERVAL); interval ++)
-    		if (counter % (interval + 1) == 0)
-    			run_modules (on_interval [interval]);
+        for (size_t interval = 0; interval < (MAX_INTERVAL); interval ++)
+            if (counter % (interval + 1) == 0)
+                run_modules (on_interval [interval]);
 
-    	print_all ();
-    	sleep (1);
+        print_all ();
+        sleep (1);
     }
 }

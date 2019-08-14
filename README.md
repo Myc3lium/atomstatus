@@ -21,21 +21,21 @@ the normal rules. This allows scripts to be written which keep state between upd
 parallel (?) to the main process.
 
 ```c
-	int order;      // The relative order of the module.
-	int on_startup; // Whether to run on startup.
+    int order;      // The relative order of the module.
+    int on_startup; // Whether to run on startup.
 
 #ifdef ENABLE_PARALLEL
-	const int is_parallel; // Is command meant to be a continuous subprocess.
-	union {                // We don't need command once a subprocess is started.
-		FILE *subpr;           // Subprocess handle.
-	    char *command;         // Command to run.
-	};
+    const int is_parallel; // Is command meant to be a continuous subprocess.
+    union {                // We don't need command once a subprocess is started.
+        FILE *subpr;           // Subprocess handle.
+        char *command;         // Command to run.
+    };
 
 #else
     const_string *command;     // Command to run.
 #endif
 
-	const_string *placeholder; // Text to use if no output is produced.
+    const_string *placeholder; // Text to use if no output is produced.
     struct string laststatus;     // Last output from command.
 ```
 
@@ -44,13 +44,13 @@ The below example illustrates updating the time every second:
 ```c
 Event
 on_interval [][MAX_PER_INTERVAL + 1] = {
-	ON_INTERVAL(1,
-		EVENT(
-			.command    = "date '+%H:%M:%S'",
-			.on_startup = 1,
-			.order      = 4
-		)
-	),
+    ON_INTERVAL(1,
+        EVENT(
+            .command    = "date '+%H:%M:%S'",
+            .on_startup = 1,
+            .order      = 4
+        )
+    ),
 ...
 ```
 
@@ -58,13 +58,13 @@ Running commands on receiving real time (RT[MIN|MAX]) signals.
 ```c
 Event
 on_signal [][MAX_PER_SIGNAL + 1] = {
-	ON_SIGNAL(1,
-			EVENT(
-				.command     = "echo got signal 1",
-				.placeholder = "waiting for signal 1",
-				.order       = 1
-			)
-	),
+    ON_SIGNAL(1,
+            EVENT(
+                .command     = "echo got signal 1",
+                .placeholder = "waiting for signal 1",
+                .order       = 1
+            )
+    ),
 ...
 ```
 
@@ -73,25 +73,25 @@ to display the current IP address, version, or similar constant information.
 ```c
 Event
 on_startup [] = {
-	EVENT(
-		.placeholder = "atomstatus vs." VERSION,
-		.on_startup  = 0,
-		.order       = 0
-	),
+    EVENT(
+        .placeholder = "atomstatus vs." VERSION,
+        .on_startup  = 0,
+        .order       = 0
+    ),
 };
 ```
 
 Demonstrating the `is_parallel` functionality:
 ```c
 #ifdef ENABLE_PARALLEL
-	ON_SIGNAL(3,
-			EVENT(
-				.command     = "count=0;while true; do count=$((count + 1)); echo $count; sleep 1; done",
-				.placeholder = "blah",
-				.is_parallel = 1,
-				.order       = 1
-			)
-	),
+    ON_SIGNAL(3,
+            EVENT(
+                .command     = "count=0;while true; do count=$((count + 1)); echo $count; sleep 1; done",
+                .placeholder = "blah",
+                .is_parallel = 1,
+                .order       = 1
+            )
+    ),
 #endif
 ```
 
