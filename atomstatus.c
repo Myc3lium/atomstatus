@@ -13,9 +13,11 @@
 
 
 #ifdef __GNUC__
-    #define Unused                     __attribute__((unused))
+    #define Unused   __attribute__((unused))
+    #define Noreturn __attribute__((noreturn))
 #else
     #define Unused
+    #define Noreturn
 #endif
 
 // Enable this option if you want to run things in parallel.
@@ -23,7 +25,7 @@
 // then left open, being updated as normal, but without closing
 // and reopening a subprocess for the command every time the module
 // is run. This allows scripts run as modules to "remember" things
-// (keep state).
+// (keep state). This is an experimental feature.
 
 // #define ENABLE_PARALLEL
 
@@ -51,6 +53,7 @@
 #define MAX_STARTUP (sizeof(on_startup) / sizeof(on_startup[0]))
 #define MAX_ORDERED (sizeof(ordered_events) / sizeof(ordered_events[0]))
 
+#define STRING_NEEDS_RESIZE(st) ((st. length +1) == (st. allocated))
 #define ISNULLSTRING(st) (!(st. length) && !(st. allocated) && !(st. internal))
 #define NULL_STRING { .length = 0, .allocated = 0, .internal = NULL }
 #define EVENT(...)\
@@ -90,8 +93,8 @@ struct {
 int   compare_elements          (const void*, const void*);
 void  sort_events               (void);
 #ifdef ENABLE_PARALLEL
-int   open_subprocess_command   (Event*);
-int   close_subprocess_command  (Event*);
+int   open_subprocess_module   (Event*);
+int   close_subprocess_module  (Event*);
 #endif
 void  initial_run               (void);
 int   run_modules               (Event*);
@@ -188,6 +191,8 @@ print_all (void){
 int
 sfgetline (FILE* source, struct string *output){
 	int carry;
+	if (!output)
+		return 1;
 
 	if (!output -> internal){
 		output -> allocated = 64;
@@ -202,10 +207,12 @@ sfgetline (FILE* source, struct string *output){
 	output -> internal [0] = '\0';
 
 	while ((carry = fgetc (source)) != EOF){ // EOF encountered, leave the string with intact from last state.
-		if (carry == '\n' || carry == '\r' || carry == '\0') // Stop on newline.
+		if (carry == '\n'
+		|| 	carry == '\r'
+		||  carry == '\0') // Stop on newline or null byte.
 			return 0;
 
-		if (output -> length + 1 == output -> allocated) // width of characters == allocated width
+		if (STRING_NEEDS_RESIZE((*output)))
 			if (! realloc (output -> internal, (output ->allocated += output -> allocated / 2))){
 				eprintf("Failed allocating %d bytes reading output of command. errno: %d", output -> length, errno);
 				return 1;
@@ -220,19 +227,29 @@ sfgetline (FILE* source, struct string *output){
 
 void
 sfree(struct string *st){
-	if (st && st -> allocated && st -> internal)
+	if (st && st -> allocated && st -> internal){
 		free (st -> internal);
+		*st = (struct string){
+			.allocated = 0,
+			.length    = 0,
+			.internal  = NULL
+		};
+	}
 }
 
 int
 run_module (Event *module){
 	// Take a pointer to a single module and run it.
-	if (!module || !(module -> command)
 #ifdef ENABLE_PARALLEL
-			|| !(module -> subpr)
-#endif
-		) // abort on empty command.
+	if (!(module)
+	||  !(module -> command)
+	||  !(module -> subpr)) // abort on empty command.
 		return 1;
+#else
+	if (!(module)
+	||  !(module -> command)) // abort on empty command OR non reference.
+		return 1;
+#endif
 
 	struct string outline = NULL_STRING;
 #ifdef ENABLE_PARALLEL
@@ -241,9 +258,11 @@ run_module (Event *module){
 								popen (module -> command, "r"));
 #else
 	FILE *process = popen (module -> command, "r");
+	if (!process) // Abort on failure to open.
+		return 1;
 #endif
 
-	int gotline   = sfgetline (process, &(outline)), // sfgetline (process, &(module -> laststatus)),
+	int gotline   = sfgetline (process, &(outline)),
 	    exitstat  = 0;
 
 #ifdef ENABLE_PARALLEL
@@ -251,12 +270,14 @@ run_module (Event *module){
         eprintf("Command '%s' exited with nonzero status %d", module -> command, exitstat);
 #else
 	if ((exitstat = pclose (process)))
-        eprintf("Command '%s' exited with nonzero status %d", module -> command, exitstat);
+        eprintf("Command '%s' exited with nonzero status '%d'", module -> command, exitstat);
 #endif
-    else {
-		// Only replace last status if command ran successfully.
+
+	if (!gotline && outline. length){ // Programs might produce output, but fail.
 		sfree (&(module -> laststatus));
 		module -> laststatus = outline;
+	} else {
+		sfree (&(outline));
 	}
 
 	return (gotline || exitstat);
@@ -274,7 +295,7 @@ run_modules (Event *modules){
 
 #ifdef ENABLE_PARALLEL
 int
-open_subprocess_command (Event* module){
+open_subprocess_module (Event* module){
 	// Open a subprocess using module -> command, then
 	// attach the resulting FILE handle to the module.
 
@@ -294,7 +315,7 @@ open_subprocess_command (Event* module){
 }
 
 int
-close_subprocess_command (Event* module){
+close_subprocess_module (Event* module){
 	if (!module)
 		return 1;
 
@@ -317,7 +338,7 @@ initial_run (void){
 				run_module (&(on_interval [i][x]));
 #ifdef ENABLE_PARALLEL
 			else if (on_interval [i][x]. is_parallel)
-				open_subprocess_command (&(on_interval [i][x]));
+				open_subprocess_module (&(on_interval [i][x]));
 #endif
 	}
 
@@ -327,7 +348,7 @@ initial_run (void){
 				run_module (&(on_signal [i][x]));
 #ifdef ENABLE_PARALLEL
 			else if (on_signal [i][x]. is_parallel)
-				open_subprocess_command (&(on_signal [i][x]));
+				open_subprocess_module (&(on_signal [i][x]));
 #endif
 	}
 }
@@ -345,16 +366,16 @@ handle_user_signal (int signo){
 	run_modules (on_signal [(signo - SIGRTMIN - 1)]);
 }
 
-void
+Noreturn void
 handle_sigint_cleanup (Unused int signo){
-	eprintf("Caught signal SIGINT, exiting...%s", "");
+	eprintf("Caught SIGINT, exiting...%s", "");
 
 	// Cleanup tabled statuses.
 	for (size_t i = 0; i < MAX_INTERVAL; i++)
 		for (Event *module = on_interval[i]; !ISEMPTYEVENT((*module)); module++){
 			sfree (&(module -> laststatus));
 #ifdef ENABLE_PARALLEL
-			close_subprocess_command(module);
+			close_subprocess_module(module);
 #endif
 		}
 
@@ -362,7 +383,7 @@ handle_sigint_cleanup (Unused int signo){
 		for (Event *module = on_signal[i]; !ISEMPTYEVENT((*module)); module++){
 			sfree (&(module -> laststatus));
 #ifdef ENABLE_PARALLEL
-			close_subprocess_command(module);
+			close_subprocess_module(module);
 #endif
 		}
 
@@ -379,9 +400,14 @@ main (void){
 		eprintf("Failed to register handler for SIGINT.%s", "");
 
    	// Set handlers for user defined signals.
-   	for (int signo = 0; signo < (int)MAX_SIGNAL; signo ++)
-   		if (signal(SIGRTMIN+ signo, handle_user_signal) == SIG_ERR)
-   			eprintf("Failed to register shared handler for signal (%d)", (SIGRTMIN+ signo));
+   	for (int signo = 0; signo < (int)MAX_SIGNAL; signo ++){
+   		if (signal(SIGRTMIN+ signo, handle_user_signal) == SIG_ERR){
+			if (errno == EINVAL)
+				eprintf("Failed to register shared handler for signal (%d), invalid signal", (SIGRTMIN+ signo));
+			else
+				eprintf("Failed to register shared handler for signal (%d)", (SIGRTMIN+ signo));
+		}
+	}
 
 	// Run modules to get starting values.
     initial_run ();
@@ -393,7 +419,7 @@ main (void){
     for (time_t counter = time (NULL);; ){
     	counter = time (NULL);
 
-    	for (size_t interval = 0; interval < (MAX_INTERVAL-1); interval ++)
+    	for (size_t interval = 0; interval < (MAX_INTERVAL); interval ++)
     		if (counter % (interval + 1) == 0)
     			run_modules (on_interval [interval]);
 

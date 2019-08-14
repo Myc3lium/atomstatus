@@ -15,10 +15,10 @@ and their index in their array is the interval (in seconds) or user signal to be
 allows dispatching commands in constant time. At runtime, a pointer to each command is sorted 
 into a separate array to allow them to be printed in order. Commands are stored as `Event` 
 struct types. These contain the relative order of the command, whether to run it on startup, 
-placeholder text, the last status, etc. If the macro ENABLE_PARALLEL is defined, the user
-can define modules which are only run once, but which are updated according to the normal rules.
-This allows scripts to be written which keep state between updates, and which run parallel (?)
-to the main process.
+placeholder text, the last status, etc. If the macro `ENABLE_PARALLEL` (use `./build -DENABLE_PARALLEL`) 
+is defined, the user can define modules which are only run once, but which are updated according to 
+the normal rules. This allows scripts to be written which keep state between updates, and which run 
+parallel (?) to the main process.
 
 ```c
 	int order;      // The relative order of the module.
@@ -104,5 +104,8 @@ Alternately, segments can be printf-d by defining the preprocessor macro `FORMAT
 
 ## TODO
 1. Add non blocking read from `popen` processes.
-2. Find source of weird `realloc` failure. This seems to be something to do
-    with heap corruption, although I'm not sure exactly what.
+2. ~~Find source of weird `realloc` failure. This seems to be something to do
+   with heap corruption, although I'm not sure exactly what.~~ This seems to rectified
+when the bandwidth script in my personal config is ~~not running~~ not producing certain output. Using the hardware wifi
+switch (or losing connection) causes the program to crash if said output is produced. Not a problem with the main program.
+3. ~~Find reason battery status is not updated.~~ Off by one error. Caused by `interval < (MAX_INTERVAL-1)` instead of `interval < MAX_INTERVAL` in main loop.

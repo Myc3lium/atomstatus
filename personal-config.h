@@ -1,6 +1,6 @@
 // Using arrays for intervals and signals allows us to dispatch
 // events/modules in O(1) (constant) time.
-const char* format_separator = "|";
+const char* format_separator = " | ";
 #define FORMAT "%s"
 
 // Event members:
@@ -36,7 +36,7 @@ on_interval [][MAX_PER_INTERVAL + 1] = {
 	ON_INTERVAL(5,
 		EVENT(
 			.command     = "bash ~/.config/dwm/bandwidth",
-			.placeholder = "",
+			.placeholder = "Wifi down",
 			.on_startup  = 1,
 			.order       = 2
 		)
@@ -44,17 +44,10 @@ on_interval [][MAX_PER_INTERVAL + 1] = {
 
 	ON_INTERVAL(10,
 		EVENT(
-			.command    = "acpi -b | awk '{ print $3, substr($4,1,index($4,\"%\")) }'",
-			.on_startup = 1,
-			.order      = 4
-		)
-	),
-
-	ON_INTERVAL(60,
-		EVENT(
-			.command    = "uptime -p | awk '{ print \"up\",$2 \":\" $4 }'",
-			.on_startup = 1,
-			.order      = 3
+			.command     = "acpi -b | awk '{ print $3, substr($4,1,index($4,\"%\")) }'",
+			.placeholder = "Battery unavailable",
+			.on_startup  = 1,
+			.order       = 4
 		)
 	),
 };
@@ -64,8 +57,8 @@ on_signal [][MAX_PER_SIGNAL + 1] = {
 	ON_SIGNAL(1,
 			EVENT(
 				.command     = "bash \"$HOME/.config/dwm/cmus-blocklet\"",
-				.placeholder = "<cmus down>",
-				.on_startup  = 1,
+				.placeholder = "<Nothing playing>",
+				.on_startup  = 0,
 				.order       = 0
 			)
 	),
