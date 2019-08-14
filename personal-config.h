@@ -75,7 +75,7 @@ on_signal [][MAX_PER_SIGNAL + 1] = {
 #ifdef ENABLE_PARALLEL
     ON_SIGNAL(3,
             EVENT(
-                .command     = "count=0;while true; do count=$((count + 1)); echo $count; sleep 1; done",
+                .command     = "count=0;while true; do count=$((count + 1)); echo $count; pkill -RTMIN+3 atomstatus; sleep 1; done",
                 .placeholder = "blah",
                 .is_parallel = 1,
                 .order       = 1

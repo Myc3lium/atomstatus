@@ -13,12 +13,15 @@
 
 
 #ifdef __GNUC__
-    #define Unused   __attribute__((unused))
-    #define Noreturn __attribute__((noreturn))
+    #define Unused     __attribute__((unused))
+    #define Noreturn   __attribute__((noreturn))
+    #define Deprecated __attribute__((deprecated))
 #else
     #define Unused
     #define Noreturn
+    #define Deprecated
 #endif
+
 
 // Enable this option if you want to run things in parallel.
 // Modules defined with .is_parallel are opened at startup,
@@ -26,16 +29,27 @@
 // and reopening a subprocess for the command every time the module
 // is run. This allows scripts run as modules to "remember" things
 // (keep state). This is an experimental feature.
+//
+// ===>  #define ENABLE_PARALLEL
 
-// #define ENABLE_PARALLEL
+// Enabling this option disables usage of eprintf to suppress
+// diagnostic messages.
+//
+// ===>  #define SUPPRESS_DIAGNOSTICS
 
 
 #define VERSION "0.1.0"
+
+
+#ifdef SUPPRESS_DIAGNOSTICS
+    #define eprintf(...)\
+        do { } while (0)
+#else
+    #define eprintf(FORMAT, ...)\
+        fprintf(stderr, "[atomstatus] " FORMAT "\n", __VA_ARGS__)
+#endif
+
 #define const_string const char const
-
-#define eprintf(FORMAT, ...)\
-    fprintf(stderr, "[atomstatus] " FORMAT "\n", __VA_ARGS__)
-
 #define EMPTYEVENT { .command = NULL }
 #define ISEMPTYEVENT(ev)\
     (ev. command == NULL)
@@ -48,7 +62,7 @@
 #define MAX_PER_SIGNAL 8
 #define MAX_SIGNAL (sizeof(on_signal) / sizeof(on_signal [0]))
 #define ON_SIGNAL(signal, ...)\
-    [signal - 1] = { __VA_ARGS__, EMPTYEVENT}
+    [signal] = { __VA_ARGS__, EMPTYEVENT}
 
 #define MAX_STARTUP (sizeof(on_startup) / sizeof(on_startup[0]))
 #define MAX_ORDERED (sizeof(ordered_events) / sizeof(ordered_events[0]))
@@ -73,10 +87,12 @@ struct {
 
 #ifdef ENABLE_PARALLEL
     // Enable parallel modules by defining this macro.
-    const int is_parallel; // Is command meant to be a continuous subprocess.
-    union {            // We don't need command once subpr is started.
+	// We don't need the command once a subprocess is started,
+	// so make them an anonymous union.
+    const int is_parallel;
+    union {
         FILE *subpr;   // Subprocess handle.
-        char *command;     // Command.
+        char *command; // Command.
     };
 #else
     const_string *command;     // Command.
@@ -90,12 +106,13 @@ struct {
 } Event;
 
 
-int   compare_elements          (const void*, const void*);
-void  sort_events               (void);
 #ifdef ENABLE_PARALLEL
 int   open_subprocess_module   (Event*);
 int   close_subprocess_module  (Event*);
 #endif
+
+int   compare_elements          (const void*, const void*);
+void  sort_events               (void);
 void  initial_run               (void);
 int   run_modules               (Event*);
 int   run_module                (Event*);
@@ -114,12 +131,9 @@ void  print_all                 (void);
 #endif
 
 
-Event *ordered_events
-    [(MAX_INTERVAL * MAX_PER_INTERVAL) +
-     (MAX_SIGNAL * MAX_PER_SIGNAL) +
-     (MAX_STARTUP) + 1] =
-
-                { NULL };
+Event *ordered_events [(MAX_INTERVAL * MAX_PER_INTERVAL)
+	+ (MAX_SIGNAL * MAX_PER_SIGNAL)
+	+ (MAX_STARTUP) + 1] = { NULL };
 
 int
 compare_elements (const void* a, const void* b){
@@ -332,38 +346,35 @@ initial_run (void){
     for (size_t i = 0; i < MAX_STARTUP; i++)
         run_module (&(on_startup [i]));
 
-    for (size_t i = 0; i < MAX_INTERVAL; i++){
+    for (size_t i = 0; i < MAX_INTERVAL; i++)
         for (size_t x = 0; !ISEMPTYEVENT((on_interval [i][x])); x++)
             if (on_interval [i][x]. on_startup)
                 run_module (&(on_interval [i][x]));
+
 #ifdef ENABLE_PARALLEL
             else if (on_interval [i][x]. is_parallel)
                 open_subprocess_module (&(on_interval [i][x]));
 #endif
-    }
 
-    for (size_t i = 0; i < MAX_SIGNAL; i++){
+    for (size_t i = 0; i < MAX_SIGNAL; i++)
         for (size_t x = 0; !ISEMPTYEVENT((on_signal [i][x])); x++)
             if (on_signal [i][x]. on_startup)
                 run_module (&(on_signal [i][x]));
+
 #ifdef ENABLE_PARALLEL
             else if (on_signal [i][x]. is_parallel)
                 open_subprocess_module (&(on_signal [i][x]));
 #endif
-    }
 }
 
 void
 handle_user_signal (int signo){
-    // Y U NO DISPATCH COMMANDS?
-    // Ok, this seems to work now. sending signals > MAX_SIGNAL
-    // crashes the program though. Tried registering handlers that do
-    // nothing for RTsignals above MAX_SIGNAL, but that stopped the signals
-    // from being received at all.
-    if ((signo - SIGRTMIN - 1) >= (int)MAX_SIGNAL)
+	// Do nothing if signal is past the
+	// max number of signals.
+	if ((signo - SIGRTMIN) >= (int)MAX_SIGNAL)
         return;
 
-    run_modules (on_signal [(signo - SIGRTMIN - 1)]);
+    run_modules (on_signal [(signo - SIGRTMIN)]);
 }
 
 Noreturn void
@@ -399,15 +410,16 @@ main (void){
     if (signal(SIGINT, handle_sigint_cleanup) == SIG_ERR)
         eprintf("Failed to register handler for SIGINT.%s", "");
 
-       // Set handlers for user defined signals.
-       for (int signo = 0; signo < (int)MAX_SIGNAL; signo ++){
-           if (signal(SIGRTMIN+ signo, handle_user_signal) == SIG_ERR){
-            if (errno == EINVAL)
-                eprintf("Failed to register shared handler for signal (%d), invalid signal", (SIGRTMIN+ signo));
-            else
-                eprintf("Failed to register shared handler for signal (%d)", (SIGRTMIN+ signo));
-        }
-    }
+    // Set handlers for all signals in the range (RTMIN -> RTMAX).
+	for (int signo = SIGRTMIN; signo < SIGRTMAX; signo++){
+        if (signal(signo, handle_user_signal) == SIG_ERR){
+             if (errno == EINVAL)
+	 			eprintf("Failed to register shared handler for signal (%d), invalid signal", (SIGRTMIN+ signo));
+
+             else
+	 			eprintf("Failed to register shared handler for signal (%d)", (SIGRTMIN+ signo));
+		}
+	}
 
     // Run modules to get starting values.
     initial_run ();
@@ -420,8 +432,9 @@ main (void){
         counter = time (NULL);
 
         for (size_t interval = 0; interval < (MAX_INTERVAL); interval ++)
-            if (counter % (interval + 1) == 0)
+            if (counter % (interval + 1) == 0){
                 run_modules (on_interval [interval]);
+			}
 
         print_all ();
         sleep (1);

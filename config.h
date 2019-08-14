@@ -15,6 +15,37 @@ const char* format_separator = " | ";
 
 Event
 on_interval [][MAX_PER_INTERVAL + 1] = {
+#ifdef I3_SUPPORT
+    ON_INTERVAL(1,
+        EVENT(
+            .command    = "date '+%H:%M:%S'",
+            .on_startup = 1,
+            .order      = 4,
+
+			I3(
+				.full_text  = ""
+				.short_text = ""
+				.color      = "#ffffff",
+				.background = "#000000",
+				.border     = "#000000"
+
+				.align      = "left",
+				.name       = "clock",
+				.instance   = "",
+				.urgent     = "false",
+				.separator  = "|",
+				.separator_block_width = 9,
+				.markup     = "none",
+
+				.border_top      = 2,
+				.border_right    = 2,
+				.border_bottom   = 2,
+				.border_left     = 2,
+				.min_width       = 300
+		  )
+        )
+    ),
+#else
     ON_INTERVAL(1,
         EVENT(
             .command    = "date '+%H:%M:%S'",
@@ -22,6 +53,7 @@ on_interval [][MAX_PER_INTERVAL + 1] = {
             .order      = 4
         )
     ),
+#endif
 
     ON_INTERVAL(10,
         EVENT(
@@ -49,6 +81,16 @@ on_signal [][MAX_PER_SIGNAL + 1] = {
                 .order       = 1
             )
     ),
+#ifdef ENABLE_PARALLEL
+    ON_SIGNAL(3,
+            EVENT(
+                .command     = "count=0;while true; do count=$((count + 1)); echo $count; pkill -RTMIN+3 atomstatus; sleep 1; done",
+                .placeholder = "blah",
+                .is_parallel = 1,
+                .order       = 1
+            )
+    ),
+#endif
 
     {EMPTYEVENT},
 };
