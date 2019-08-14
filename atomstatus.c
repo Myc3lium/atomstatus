@@ -111,6 +111,7 @@ int   open_subprocess_module   (Event*);
 int   close_subprocess_module  (Event*);
 #endif
 
+
 int   compare_elements          (const void*, const void*);
 void  sort_events               (void);
 void  initial_run               (void);
@@ -178,10 +179,8 @@ sort_events (void){
 void
 print_all (void){
     // Print all modules in order, separated by format_separator.
-
     Event **modules = ordered_events;
     size_t index = 0;
-
     for (; *modules; modules++, index++){
         if (!ISNULLSTRING((*modules)->laststatus)){
             if (index > 0)
