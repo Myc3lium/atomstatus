@@ -27,7 +27,7 @@ Event
 on_interval [][MAX_PER_INTERVAL + 1] = {
     ON_INTERVAL(1,
         EVENT(
-            .command    = "date '+[%H:%M:%S]'",
+            .command    = "date '+%a@%H:%M:%S'",
             .on_startup = 1,
             .order      = 5
         )
@@ -35,40 +35,54 @@ on_interval [][MAX_PER_INTERVAL + 1] = {
 
     ON_INTERVAL(5,
         EVENT(
-            .command     = "bash ~/.config/dwm/bandwidth",
+            .command     = "sh ~/.config/dwm/bandwidth",
             .placeholder = "Wifi down",
             .on_startup  = 1,
-            .order       = 2
+            .order       = 1
         )
     ),
 
     ON_INTERVAL(10,
         EVENT(
-            .command     = "acpi -b | awk '{ print $3, substr($4,1,index($4,\"%\")) }'",
+            .command     = "acpi -b | awk '{ print $3, substr($4,1,index($4,\"%\")) }' | sed 's/Discharging,//g;s/Charging,//g'",
             .placeholder = "Battery unavailable",
             .on_startup  = 1,
-            .order       = 4
+            .order       = 3
+        ),
+
+		EVENT(
+			.command     = "sensors | awk '/CPU:/{ printf substr($NF,2,length($NF)) } /Processor Fan:/{ printf \" \"$(NF-1)\",\" }'",
+			.on_startup  = 1,
+			.order       = 2
+		)
+    ),
+
+    ON_INTERVAL(60,
+        EVENT(
+			.command = "uptime | awk -F'[ ,]+' '{print \"祥\",$4}'",
+			.order   = 4,
+			.on_startup = 1
         )
     ),
 };
 
 Event
 on_signal [][MAX_PER_SIGNAL + 1] = {
-    ON_SIGNAL(1,
-            EVENT(
-                .command     = "bash \"$HOME/.config/dwm/cmus-blocklet\"",
-                .placeholder = "<Nothing playing>",
-                .on_startup  = 0,
-                .order       = 0
-            )
-    ),
+    //ON_SIGNAL(1,
+    //        EVENT(
+    //            .command     = "bash \"$HOME/.config/dwm/cmus-blocklet\"",
+    //            .placeholder = "ﱙ",
+    //            .on_startup  = 0,
+    //            .order       = 0
+    //        )
+    //),
 
     ON_SIGNAL(2,
             EVENT(
                 .command     = "bash \"$HOME/.config/dwm/volume\"",
                 .placeholder = "<volume down>",
                 .on_startup  = 1,
-                .order       = 1
+                .order       = 0
             )
     ),
 
@@ -78,7 +92,7 @@ on_signal [][MAX_PER_SIGNAL + 1] = {
                 .command     = "count=0;while true; do count=$((count + 1)); echo $count; pkill -RTMIN+3 atomstatus; sleep 1; done",
                 .placeholder = "blah",
                 .is_parallel = 1,
-                .order       = 1
+                .order       = 0
             )
     ),
 #endif

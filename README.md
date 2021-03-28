@@ -100,7 +100,7 @@ Alternately, segments can be printf-d by defining the preprocessor macro `FORMAT
 
 ## Installation
 1. Configure status commands.
-2. Run `./build`. Move the resulting executable `atomstatus` to a suitable directory.
+2. Run `make`. Move the resulting executable `atomstatus` to a suitable directory.
 
 ## TODO
 1. Add non blocking read from `popen` processes.

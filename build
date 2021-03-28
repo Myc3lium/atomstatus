@@ -1,6 +1,0 @@
-#!/bin/sh
-
-gcc -Wall -Wextra -pedantic -Wno-comment -Wformat-nonliteral -Wformat-security\
-	-Wuninitialized -Winit-self -Warray-bounds=2\
-	-Wenum-compare -Werror=implicit-function-declaration atomstatus.c -o atomstatus\
-	"$@"

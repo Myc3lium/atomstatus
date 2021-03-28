@@ -92,7 +92,7 @@ struct {
     const int is_parallel;
     union {
         FILE *subpr;   // Subprocess handle.
-        char *command; // Command.
+        const char *command; // Command.
     };
 #else
     const_string *command;     // Command.
@@ -111,7 +111,6 @@ int   open_subprocess_module   (Event*);
 int   close_subprocess_module  (Event*);
 #endif
 
-
 int   compare_elements          (const void*, const void*);
 void  sort_events               (void);
 void  initial_run               (void);
@@ -122,7 +121,6 @@ void  handle_sigint_cleanup     (int);
 int   sfgetline                 (FILE*, struct string *);
 void  sfree                     (struct string*);
 void  print_all                 (void);
-
 
 // #include "config.h"
 #include "personal-config.h"
@@ -298,7 +296,8 @@ run_module (Event *module){
 
 int
 run_modules (Event *modules){
-    // Take a pointer to a series of modules and run them.
+    // Take a pointer to a (NULL pointer terminated!!)
+	// series of modules and run them.
     int exitstat = 0;
     for (; !(ISEMPTYEVENT((*modules))); modules++)
         exitstat = (exitstat || run_module (modules));
