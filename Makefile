@@ -3,7 +3,6 @@ OPTS=-Wall -Wextra -pedantic -Wno-comment -Wformat-nonliteral -Wformat-security 
 CC=gcc
 
 atomstatus: atomstatus.c config.h
-	rm -f $@
 	$(CC) $(OPTS) $< -o $@
 
 clean:
